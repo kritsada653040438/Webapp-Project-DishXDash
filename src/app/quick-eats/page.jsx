@@ -311,7 +311,7 @@ export default function QuickEats() {
   return (
     <main className="bg-gray-100 min-h-screen">
       <Container>
-        <Navbar />
+        <Navbar session={session} />
         <div className="flex-grow text-center py-10 px-4">
           <h1 className="text-4xl font-bold mb-4 text-gray-800">QuickEats - อาหารทำง่าย รวดเร็วทันใจ</h1>
           <p className="text-xl text-gray-600 mb-8">รวมเมนูอาหารที่ทำได้ง่ายและรวดเร็ว ไม่ต้องใช้เวลานาน!</p>
