@@ -14,7 +14,7 @@ export default function Discover() {
   return (
     <main>
       <Container>
-        <Navbar  />
+        <Navbar session={session} />
           <div className="flex-grow text-center p-10">
             
           </div>
