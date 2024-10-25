@@ -51,7 +51,7 @@ function LoginPage() {
 
   return (
     <Container>
-        <Navbar />
+        <Navbar session={session} />
             <div className='flex-grow'>
                 <div className="flex justify-center items-center">
                     <div className='w-[400px] shadow-xl p-10 mt-5 rounded-xl'>
