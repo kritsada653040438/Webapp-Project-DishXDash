@@ -1,0 +1,64 @@
+{
+    "topPicks": [
+      {
+        "id": 1,
+        "title": "The rolling pinn",
+        "description": "Chocolate dubai",
+        "image": "/images/chocodubai.jpg",
+        "data": [
+          "55 Soi Sukhumvit 39, Khlong Tan Nuea, Watthana, Bangkok, กรุงเทพมหานคร 10110",
+          "065 993 7536",
+          "https://www.facebook.com/@therollinpinn/",
+          "https://rollingpinn.com/en/"
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Isao",
+        "description": "Sushi",
+        "image": "/images/isao.jpg",
+        "data": [
+          "5 Sukhumvit Road Soi Sukhumvit 31, Watthana, Bangkok 10110",
+          "02 258 0645",
+          "https://www.facebook.com/isaobkk?mibextid=LQQJ4d",
+          "https://linktr.ee/isaobkk"
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Coffee Beans By Down",
+        "description": "KUROBUTA PORK CHOP",
+        "image": "/images/coffeebean.jpg",
+        "data": [
+          "Rama1 Road Pathumwan, Siam Paragon Tower Grand Floor, Bangkok 10330",
+          "02 610 9702",
+          "https://www.facebook.com/CoffeeBeansbyDao/",
+          "https://coffeebeans.co.th/"
+        ]
+      },
+      {
+        "id": 4,
+        "title": "yangrak",
+        "description": "Wagyu Beef Steak",
+        "image": "/images/Anglo.jpg",
+        "data": [
+          "6/8 ถนนเดโช สุริยวงศ์ บางรัก กรุงเทพมหานคร",
+          "0989655996",
+          "https://www.facebook.com/aunglo.by.yangrak/",
+          "https://guide.michelin.com/th/th/bangkok-region/bangkok/restaurant/aunglo-by-yangrak"
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Ñam Ñam",
+        "description": "Spaghetti Alfredo Pencetta",
+        "image": "/images/pasta.jpg",
+        "data": [
+          "5/6 Soi Soonvijai, Petchburi Road, Bangkok, Bangkok 10310",
+          "098 520 8026",
+          "https://www.facebook.com/namnampastaandtapas/",
+          "https://www.namnampasta.com/"
+        ]
+      }
+    ]
+  }

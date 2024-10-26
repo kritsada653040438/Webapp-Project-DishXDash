@@ -1,14 +1,12 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
 import Container from "../components/Container";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import { X, Clock, MapPin, Phone, Facebook, Globe } from 'lucide-react';
-import { motion, AnimatePresence, px } from 'framer-motion';
-
-
+import { motion, AnimatePresence } from 'framer-motion';
 
 const RecipeModal = ({ isOpen, onClose, recipe }) => {
     const [activeTab, setActiveTab] = useState('data');
@@ -44,9 +42,7 @@ const RecipeModal = ({ isOpen, onClose, recipe }) => {
                             </div>
                         </div>
 
-                        <img src={recipe.image} alt={recipe.title} className="w-full h-80 object-cover rounded-lg mb-6 shadow-md " />
-
-
+                        <img src={recipe.image} alt={recipe.title} className="w-full h-80 object-cover rounded-lg mb-6 shadow-md" />
 
                         <AnimatePresence mode="wait">
                             {activeTab === 'data' && (
@@ -63,7 +59,6 @@ const RecipeModal = ({ isOpen, onClose, recipe }) => {
                                     <ul className="list-none space-y-2">
                                         {recipe.data.map((data, index) => {
                                             if (index > 2) {
-                                                // Logic for index > 2
                                                 return (
                                                     <li key={index} className="website" style={{ padding: '10px', backgroundColor: '#ecf8f8', borderRadius: '10px', display: 'flex', alignItems: 'center' }}>
                                                         <Globe className="w-8 h-8 text-violet-400 hover:text-blue-700 cursor-pointer mr-4" />
@@ -71,23 +66,20 @@ const RecipeModal = ({ isOpen, onClose, recipe }) => {
                                                     </li>
                                                 );
                                             } else if (index > 1) {
-                                                // Logic for index > 1
                                                 return (
                                                     <li key={index} className="website" style={{ padding: '10px', backgroundColor: '#ecf8f8', borderRadius: '10px', display: 'flex', alignItems: 'center' }}>
-                                                        <Facebook className="w-8 h-8 text-blue-600 hover:text-blue-700 cursor-pointer mr-4" /> {/* Added mr-4 for spacing */}
+                                                        <Facebook className="w-8 h-8 text-blue-600 hover:text-blue-700 cursor-pointer mr-4" />
                                                         <a href={data} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Facebook Page</a>
                                                     </li>
                                                 );
                                             } else if (index > 0) {
-                                                // Logic for index > 0
                                                 return (
                                                     <li key={index} className="website" style={{ padding: '10px', backgroundColor: '#ecf8f8', borderRadius: '10px', display: 'flex', alignItems: 'center' }}>
                                                         <Phone className="w-8 h-8 text-green-400 hover:text-blue-700 cursor-pointer mr-4" />
                                                         {data}
                                                     </li>
                                                 );
-                                            } else if (index === 0) {
-                                                // Logic for index == 0 - Add Map Pointer Icon
+                                            } else {
                                                 return (
                                                     <li key={index} className="website" style={{ padding: '10px', backgroundColor: '#ecf8f8', borderRadius: '10px', display: 'flex', alignItems: 'center' }}>
                                                         <MapPin className="w-8 h-8 text-blue-600 hover:text-blue-700 cursor-pointer mr-4" />
@@ -123,9 +115,9 @@ const RecipeCard = ({ recipe, onViewRecipe, rank }) => (
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
         className="relative bg-white shadow-lg rounded-lg overflow-hidden cursor-pointer"
-        onClick={() => onViewRecipe(recipe)} // onClick moved here
+        onClick={() => onViewRecipe(recipe)}
     >
-        <img src={recipe.image} alt={recipe.title} className="w-full object-cover" style={{ height: '200px' }} /> {/* Adjusted image height */}
+        <img src={recipe.image} alt={recipe.title} className="w-full object-cover" style={{ height: '200px' }} />
 
         {rank && (
             <div
@@ -139,60 +131,33 @@ const RecipeCard = ({ recipe, onViewRecipe, rank }) => (
             </div>
         )}
 
-        <div className="p-4 text-left"> {/* Added text-left here */}
+        <div className="p-4 text-left">
             <h2 className="text-xl font-semibold mb-2 text-gray-800">{recipe.title}</h2>
             <p className="text-gray-600 mb-4">{recipe.description}</p>
-        </div>
-        <div className='location box'>
-            <p className="text-black">{recipe.location}</p>
         </div>
     </motion.div>
 );
 
-
-
 export default function Toppick() {
     const [selectedRecipe, setSelectedRecipe] = useState(null);
+    const [topPicks, setTopPicks] = useState([]);
     const { data: session } = useSession();
-    if (!session) redirect("/login");
+    
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const response = await fetch('/restaurants.json');
+                const data = await response.json();
+                setTopPicks(data.topPicks);
+            } catch (error) {
+                console.error('Error fetching restaurant data:', error);
+            }
+        };
 
-    const topPicks = [
-        {
-            id: 1,
-            title: "The rolling pinn",
-            description: "Chocolate dubai",
-            image: "/images/chocodubai.jpg",
-            data: ["55 Soi Sukhumvit 39, Khlong Tan Nuea, Watthana, Bangkok, กรุงเทพมหานคร 10110", "065 993 7536", "https://www.facebook.com/@therollinpinn/", "https://rollingpinn.com/en/"],
-        },
-        {
-            id: 2,
-            title: "Isao",
-            description: "Sushi",
-            image: "/images/isao.jpg",
-            data: ["5 Sukhumvit Road Soi Sukhumvit 31, Watthana, Bangkok 10110", "02 258 0645", "https://www.facebook.com/isaobkk?mibextid=LQQJ4d", "https://linktr.ee/isaobkk"],
-        },
-        {
-            id: 3,
-            title: "Coffee Beans By Down",
-            description: "KUROBUTA PORK CHOP",
-            image: "/images/coffeebean.jpg",
-            data: ["Rama1 Road Pathumwan, Siam Paragon Tower Grand Floor, Bangkok 10330", "02 610 9702", "https://www.facebook.com/CoffeeBeansbyDao/", "https://coffeebeans.co.th/"],
-        },
-        {
-            id: 4,
-            title: "yangrak",
-            description: "Wagyu Beef Steak",
-            image: "/images/Anglo.jpg",
-            data: ["6/8 ถนนเดโช สุริยวงศ์ บางรัก กรุงเทพมหานคร", "0989655996", "https://www.facebook.com/aunglo.by.yangrak/", "https://guide.michelin.com/th/th/bangkok-region/bangkok/restaurant/aunglo-by-yangrak"],
-        },
-        {
-            id: 5,
-            title: "Ñam Ñam",
-            description: "Spaghetti Alfredo Pencetta",
-            image: "/images/pasta.jpg",
-            data: ["5/6 Soi Soonvijai, Petchburi Road, Bangkok, Bangkok 10310", "098 520 8026", "https://www.facebook.com/namnampastaandtapas/", "https://www.namnampasta.com/"],
-        },
-    ];
+        fetchData();
+    }, []);
+
+    if (!session) redirect("/login");
 
     const handleViewRecipe = (recipe) => {
         setSelectedRecipe(recipe);
@@ -211,11 +176,20 @@ export default function Toppick() {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8" style={{ marginTop: '70px' }}>
                         {topPicks.map((recipe, index) => (
-                            <RecipeCard key={recipe.id} recipe={recipe} onViewRecipe={handleViewRecipe} rank={index + 1} />
+                            <RecipeCard 
+                                key={recipe.id} 
+                                recipe={recipe} 
+                                onViewRecipe={handleViewRecipe} 
+                                rank={index + 1} 
+                            />
                         ))}
                     </div>
                 </div>
-                <RecipeModal isOpen={!!selectedRecipe} onClose={handleCloseModal} recipe={selectedRecipe} />
+                <RecipeModal 
+                    isOpen={!!selectedRecipe} 
+                    onClose={handleCloseModal} 
+                    recipe={selectedRecipe} 
+                />
                 <Footer />
             </Container>
         </main>
