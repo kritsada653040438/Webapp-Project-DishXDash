@@ -24,6 +24,7 @@ export default function Discover() {
   const [editFood, setEditFood] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
+  
   const truncateText = (text, limit) => {
     return text.length > limit ? text.substring(0, limit) + "..." : text;
   };
@@ -80,14 +81,31 @@ export default function Discover() {
     }, 3000);
   };
 
-  const handleConfirmFood = () => {
-    openModal(displayedFood); // เปิดโมดัลพร้อมแสดงข้อมูลอาหารเต็มรูปแบบ
-  
-    // ตั้งค่าให้แสดงข้อความ "คุณเลือกอาหารนี้"
+  const handleConfirmFood = async () => {
+    openModal(displayedFood);
     setShowConfirmationMessage(true);
-  
-    // แสดงพลุ
     setShowFireworks(true);
+    
+    try {
+      const res = await fetch("/api/food-history", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          foodName: displayedFood.name,
+          foodInfo: displayedFood.info,
+          foodImg: displayedFood.img,
+        }),
+      });
+  
+      if (!res.ok) {
+        throw new Error('Failed to save food selection history');
+      }
+      
+    } catch (error) {
+      console.error("Error saving food selection history:", error);
+    }
   };
 
   // ฟังก์ชันเปิดป๊อปอัปแสดงข้อมูลอาหาร
@@ -187,6 +205,7 @@ const handleEditChange = (key, value) => {
   if (!session) redirect("/login");
   console.log(session)
 
+  
   return (
     <main
       className="bg-cover bg-center bg-no-repeat min-h-screen flex flex-col"

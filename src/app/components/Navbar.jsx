@@ -20,7 +20,7 @@ function Navbar({ session }) {
     { name: 'Discover', path: '/discover' },
     { name: 'Top Picks', path: '/top-picks' },
     { name: 'Quick Eats', path: '/quick-eats' },
-    { name: 'Menu', path: '/menu' },
+    { name: 'History', path: '/history' },
   ]
 
   return (
