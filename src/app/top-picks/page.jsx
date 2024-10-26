@@ -31,7 +31,7 @@ const RecipeModal = ({ isOpen, onClose, recipe }) => {
                         className="bg-white rounded-lg p-6 max-w-3xl w-full shadow-2xl"
                         onClick={(e) => e.stopPropagation()}
                     >
-                        <div className="flex justify-between items-center mb-4">
+                        <div className="flex justify-end items-center mb-4">
                             <button onClick={onClose} className="text-gray-500 hover:text-gray-700 transition-colors">
                                 <X size={24} />
                             </button>
@@ -158,28 +158,28 @@ export default function QuickEats() {
             title: "The rolling pinn",
             description: "Chocolate dubai",
             image: "/images/Dubai.jpg",
-            data: ["55 Soi Sukhumvit 39, Khlong Tan Nuea, Watthana, Bangkok, กรุงเทพมหานคร 10110", "065 993 7536", "https://www.facebook.com/@therollinpinn/","https://rollingpinn.com/en/"],
+            data: ["55 Soi Sukhumvit 39, Khlong Tan Nuea, Watthana, Bangkok, กรุงเทพมหานคร 10110", "065 993 7536", "https://www.facebook.com/@therollinpinn/", "https://rollingpinn.com/en/"],
         },
         {
             id: 2,
             title: "Isao",
             description: "Sushi",
             image: "/images/isao.jpg",
-            data: ["5 Sukhumvit Road Soi Sukhumvit 31, Watthana, Bangkok 10110", "02 258 0645","https://www.facebook.com/isaobkk?mibextid=LQQJ4d","https://linktr.ee/isaobkk"],
+            data: ["5 Sukhumvit Road Soi Sukhumvit 31, Watthana, Bangkok 10110", "02 258 0645", "https://www.facebook.com/isaobkk?mibextid=LQQJ4d", "https://linktr.ee/isaobkk"],
         },
         {
             id: 3,
             title: "Coffee Beans By Down",
             description: "KUROBUTA PORK CHOP",
             image: "/images/coffeebean.jpg",
-            data: ["Rama1 Road Pathumwan, Siam Paragon Tower Grand Floor, Bangkok 10330","02 610 9702", "https://www.facebook.com/CoffeeBeansbyDao/", "https://coffeebeans.co.th/"],
+            data: ["Rama1 Road Pathumwan, Siam Paragon Tower Grand Floor, Bangkok 10330", "02 610 9702", "https://www.facebook.com/CoffeeBeansbyDao/", "https://coffeebeans.co.th/"],
         },
         {
             id: 4,
             title: "yangrak",
             description: "Wagyu Beef Steak",
             image: "/images/Anglo.jpg",
-            data: ["6/8 ถนนเดโช สุริยวงศ์ บางรัก กรุงเทพมหานคร" , "0989655996","https://www.facebook.com/aunglo.by.yangrak/","https://guide.michelin.com/th/th/bangkok-region/bangkok/restaurant/aunglo-by-yangrak"],
+            data: ["6/8 ถนนเดโช สุริยวงศ์ บางรัก กรุงเทพมหานคร", "0989655996", "https://www.facebook.com/aunglo.by.yangrak/", "https://guide.michelin.com/th/th/bangkok-region/bangkok/restaurant/aunglo-by-yangrak"],
         },
         {
             id: 5,
