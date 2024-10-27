@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Container from "../components/Container";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
@@ -23,19 +23,6 @@ export default function Discover() {
   const [showSettings, setShowSettings] = useState(false);
   const [editFood, setEditFood] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [settingsClass, setSettingsClass] = useState("-translate-x-full opacity-0");
-
-  useEffect(() => {
-    if (showSettings) {
-      setSettingsClass("translate-x-0 opacity-100");
-    } else {
-      setSettingsClass("-translate-x-full opacity-0");
-    }
-  }, [showSettings]);
-
-  const toggleSettings = () => {
-    setShowSettings(!showSettings);
-  };
 
   const truncateText = (text, limit) => {
     return text.length > limit ? text.substring(0, limit) + "..." : text;
@@ -136,29 +123,33 @@ const closeModal = () => {
 
 
   // ฟังก์ชันแสดงรายการอาหาร
-  const displayFoodList = () => {
-    return foodItems
-      .filter(food => !usedFoodItems.includes(food.name)) // Show items not in usedFoodItems
-      .map((food, index) => (
-        <div
-          key={index}
-          className={`p-4 rounded-lg shadow-md flex justify-between items-center hover:translate-y-[-5px] transition-transform duration-300 ${
-            food.img ? 'bg-[#caed9d]' : 'bg-[#ffd6a5]' // Green if it has an image, orange if not
-          }`}
-          onClick={() => openModal(food)}
+  // ฟังก์ชันแสดงรายการอาหารใน Dash List โดยแสดงเฉพาะรายการที่ไม่อยู่ใน usedFoodItems (ติ๊กถูกใน Settings)
+const displayFoodList = () => {
+  return foodItems
+    .filter(food => !usedFoodItems.includes(food.name)) // แสดงเฉพาะรายการที่ไม่มีใน usedFoodItems
+    .map((food, index) => (
+      <div
+        key={index}
+        className="p-4 rounded-lg shadow-md flex justify-between items-center hover:translate-y-[-5px] transition-transform duration-300 bg-[#caed9d]" // สีเขียวสำหรับรายการที่แสดงใน Dash List
+        onClick={() => openModal(food)}
+      >
+        <span className="truncate w-2/3">{food.name}</span>
+        <button
+          className="bg-red-400 text-white w-8 h-8 rounded-md flex items-center justify-center"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleDeleteFood(index);
+          }}
         >
-          <span className="truncate w-2/3">{food.name}</span>
-          <button
-            className="bg-red-400 text-white w-8 h-8 rounded-md flex items-center justify-center"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleDeleteFood(index);
-            }}
-          >
-            X
-          </button>
-        </div>
-      ));
+          X
+        </button>
+      </div>
+    ));
+};
+
+
+  const toggleSettings = () => {
+    setShowSettings(!showSettings);
   };
 
   const closeEditPopup = () => {
@@ -217,63 +208,63 @@ const handleMarkItem = (foodName) => {
 
   return (
     <main
-      className="bg-cover bg-center bg-no-repeat min-h-screen flex flex-col font-sarabun font-bold"
+      className="bg-cover bg-center bg-no-repeat min-h-screen flex flex-col"
       style={{
         backgroundImage: "url('/images/window.jpg')", // ตั้งค่าพื้นหลังจากภาพ food_bg.jpg
       }}>
       <Navbar />
       <Container>
-  <div className="font-sans bg-opacity-75 bg-white p-10 min-h-screen flex flex-col items-center">
-    <h1 className="text-5xl sm:text-6xl md:text-7xl text-center text-[#9379C2] font-bold font-serif mb-10 drop-shadow-lg shadow-[#a6a5d1] transition-all duration-300 ease-in-out hover:scale-105 hover:text-[#B09AC7]">
-      Dish Randomizer
-    </h1>
+      <div className="font-sans bg-opacity-75 bg-white p-10 min-h-screen flex flex-col items-center">
+      <h1 className="text-7xl text-center text-[#9379C2] font-bold font-serif mb-10 drop-shadow-lg shadow-[#a6a5d1] transition-all duration-300 ease-in-out hover:scale-105 hover:text-[#B09AC7]">
+  Dish Randomizer
+</h1>
 
-    <div className="flex flex-col min-733:flex-row justify-between space-y-8 min-733:space-y-0 min-733:space-x-8 w-full max-w-5xl mb-10">
-  <div className="bg-[#d6e6f2] w-full min-733:w-1/2 p-8 rounded-lg shadow-lg flex flex-col items-center">
-        <input
-          className="w-full p-3 mb-4 border rounded-lg"
-          type="text"
-          placeholder="เพิ่มชื่ออาหารที่นี่"
-          maxLength="30"
-          value={newFood.name}
-          onChange={(e) => setNewFood({ ...newFood, name: e.target.value.substring(0, 30) })}
-        />
-        <div className="w-full p-3 mb-4 border rounded-lg bg-white flex items-center justify-center">
-          <input
-            id="fileInput"
-            className="w-full cursor-pointer"
-            type="file"
-            onChange={(e) =>
-              setNewFood({ ...newFood, img: e.target.files[0] ? URL.createObjectURL(e.target.files[0]) : null })
-            }
-          />
-        </div>
-        <textarea
-          className="w-full p-3 mb-4 border rounded-lg resize-y min-h-[150px] max-h-[150px]"
-          placeholder="เพิ่มข้อมูลอาหารที่นี่"
-          value={newFood.info}
-          onChange={(e) => {
-            const inputText = e.target.value;
-            const lines = inputText.split('\n');
-            if (inputText.length <= 1000 && lines.length <= 30) {
-              setNewFood({ ...newFood, info: inputText });
-            } else {
-              const truncatedText = inputText.slice(0, 1000);
-              const truncatedLines = truncatedText.split('\n').slice(0, 30).join('\n');
-              alert("สามารถป้อนข้อมูลได้สูงสุด 1000 ตัวอักษร และไม่เกิน 30 บรรทัด");
-              setNewFood({ ...newFood, info: truncatedLines });
-            }
-          }}
-        ></textarea>
-        <button
-          className="w-full bg-[#c3bef0] p-4 rounded-lg text-white shadow-lg hover:bg-[#a59aca]"
-          onClick={handleAddFood}
-        >
-          ADD FOOD
-        </button>
-      </div>
+          <div className="flex justify-between space-x-8 w-full max-w-5xl mb-10">
+            <div className="bg-[#d6e6f2] w-1/2 p-8 rounded-lg shadow-lg flex flex-col items-center">
+              <input
+                className="w-full p-3 mb-4 border rounded-lg"
+                type="text"
+                placeholder="เพิ่มชื่ออาหารที่นี่"
+                maxLength="30"
+                value={newFood.name}
+                onChange={(e) => setNewFood({ ...newFood, name: e.target.value.substring(0, 30) })}
+              />
+              <div className="w-full p-3 mb-4 border rounded-lg bg-white flex items-center justify-center">
+                <input
+                  id="fileInput"
+                  className="w-full cursor-pointer"
+                  type="file"
+                  onChange={(e) =>
+                    setNewFood({ ...newFood, img: e.target.files[0] ? URL.createObjectURL(e.target.files[0]) : null })
+                  }
+                />
+              </div>
+              <textarea
+                className="w-full p-3 mb-4 border rounded-lg resize-y min-h-[150px] max-h-[150px]"
+                placeholder="เพิ่มข้อมูลอาหารที่นี่"
+                value={newFood.info}
+                onChange={(e) => {
+                  const inputText = e.target.value;
+                  const lines = inputText.split('\n');
+                  if (inputText.length <= 1000 && lines.length <= 30) {
+                    setNewFood({ ...newFood, info: inputText });
+                  } else {
+                    const truncatedText = inputText.slice(0, 1000);
+                    const truncatedLines = truncatedText.split('\n').slice(0, 30).join('\n');
+                    alert("สามารถป้อนข้อมูลได้สูงสุด 1000 ตัวอักษร และไม่เกิน 30 บรรทัด");
+                    setNewFood({ ...newFood, info: truncatedLines });
+                  }
+                }}
+              ></textarea>
+              <button
+                className="w-full bg-[#c3bef0] p-4 rounded-lg text-white shadow-lg hover:bg-[#a59aca]"
+                onClick={handleAddFood}
+              >
+                ADD FOOD
+              </button>
+            </div>
 
-      <div className="bg-[#e1eec3] min-733:w-1/2 w-full p-8 rounded-lg shadow-lg flex flex-col items-center relative">
+            <div className="bg-[#e1eec3] w-1/2 p-8 rounded-lg shadow-lg flex flex-col items-center relative">
               <div className="w-full p-3 bg-white text-center rounded-lg mb-4">
                 {displayedFood.name}
               </div>
@@ -286,7 +277,7 @@ const handleMarkItem = (foodName) => {
               <div className="w-full p-3 bg-white text-center rounded-lg mb-4">
                 {truncateText(displayedFood.info, 30)}
               </div>
-              <div className="flex space-x-4 w-full">
+              <div className="flex space-x-4">
                 <button
                   className={`w-full p-4 rounded-lg text-white shadow-lg ${
                     isRandomizing ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#c3bef0] hover:bg-[#a59aca]'
@@ -315,43 +306,36 @@ const handleMarkItem = (foodName) => {
             </div>
           </div>
 
-    <div className="bg-white w-full max-w-5xl p-8 rounded-lg shadow-lg mb-10">
-  <h3 className="text-xl font-semibold mb-4">Dash List</h3>
-  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 max-834:grid-cols-3 max-640:grid-cols-2 max-431:grid-cols-1 gap-4">
-    {displayFoodList()}
-  </div>
-</div>
-
-
-
-
-
-<div className="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4 w-full max-w-5xl">
-    {/* ปุ่ม */}
-    <div className="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4 w-full max-w-5xl">
-  <button
-    className="w-full bg-[#a8e6cf] p-4 rounded-lg text-white shadow-lg hover:bg-[#88d8b0]"
-    onClick={resetFoodList}
-  >
-    RESET
-  </button>
-  <button
-    className="w-full bg-[#f5a9ac] p-4 rounded-lg text-white shadow-lg hover:bg-[#f2888b]"
-    onClick={deleteAllFoodItems}
-  >
-    DELETE ALL
-  </button>
-  <button
-    className="w-full bg-[#a0d8ef] p-4 rounded-lg text-white shadow-lg hover:bg-[#8ac9e2]"
-    onClick={toggleSettings}
-  >
-    SETTINGS
-  </button>
-</div>
-</div>
-</div>
-</Container>
-
+          {/* Dash List Section */}
+          <div className="bg-white w-full max-w-5xl p-8 rounded-lg shadow-lg mb-10">
+            <h3 className="text-xl font-semibold mb-4">Dash List</h3>
+            <p className="text-gray-600 mb-4">No image upload for some food list</p>
+            <div className="grid grid-cols-5 gap-4">
+              {displayFoodList()}
+            </div>
+          </div>
+          <div className="flex space-x-4">
+            <button
+              className="bg-[#7fd8be] p-4 rounded-lg text-white shadow-lg hover:bg-[#6fc1a4]"
+              onClick={resetFoodList}
+            >
+              RESET
+            </button>
+            <button
+              className="bg-[#c3bef0] p-4 rounded-lg text-white shadow-lg hover:bg-[#a59aca]"
+              onClick={deleteAllFoodItems}
+            >
+              DELETE ALL
+            </button>
+            <button
+              className="bg-[#f8b400] p-4 rounded-lg text-white shadow-lg hover:bg-[#f39c12]"
+              onClick={toggleSettings}
+            >
+              SETTINGS
+            </button>
+          </div>
+        </div>
+      </Container>
 
       {/* ป๊อปอัปสำหรับแสดงข้อความยืนยัน */}
     {showModal && (
@@ -401,12 +385,9 @@ const handleMarkItem = (foodName) => {
         </div>
       </div>
     )}
+// การตั้งค่า Settings ที่ใช้จัดการติ๊กถูกและผิด
 {showSettings && (
-  <div
-    className={`fixed inset-y-0 left-0 bg-white shadow-lg p-6 w-64 transform transition-transform transition-opacity duration-500 ease-out ${
-      showSettings ? 'translate-x-0 opacity-100' : '-translate-x-full opacity-0'
-    }`}
-  >
+  <div className={`fixed inset-y-0 left-0 bg-white shadow-lg p-6 w-64 transition-transform duration-300 transform ${showSettings ? 'translate-x-0' : '-translate-x-full'}`}>
     {/* ปุ่มกากะบาทที่มุมขวาบน */}
     <button 
       className="absolute top-4 right-4 text-gray-600 text-xl font-bold" 
@@ -428,8 +409,8 @@ const handleMarkItem = (foodName) => {
               : 'bg-[#ffd6a5]'
           }`}
         >
-          <span className="truncate w-2/3 pr-4">{food.name}</span>
-          <div className="flex items-center space-x-2">
+          <span className="truncate w-2/3 pr-4">{food.name}</span> {/* เพิ่ม pr-4 เพื่อระยะห่างทางขวา */}
+          <div className="flex items-center space-x-2"> {/* ใช้ space-x-2 เพื่อเพิ่มระยะห่างระหว่างปุ่ม */}
             <button
               className="text-gray-500"
               onClick={() => handleEditFood(food, index)}
@@ -439,11 +420,11 @@ const handleMarkItem = (foodName) => {
             <input
               type="checkbox"
               className="w-5 h-5 appearance-none border border-gray-300 rounded-sm checked:bg-blue-100 checked:before:content-['✓'] checked:before:text-green-500 checked:before:text-lg flex items-center justify-center"
-              checked={!usedFoodItems.includes(food.name)}
+              checked={!usedFoodItems.includes(food.name)} // ติ๊กถูกถ้าไม่อยู่ใน usedFoodItems
               onChange={() => {
                 const updatedUsedFoods = usedFoodItems.includes(food.name)
-                  ? usedFoodItems.filter((item) => item !== food.name)
-                  : [...usedFoodItems, food.name];
+                  ? usedFoodItems.filter((item) => item !== food.name) // ลบออกจาก usedFoodItems ถ้าติ๊กถูก
+                  : [...usedFoodItems, food.name]; // เพิ่มเข้า usedFoodItems ถ้าติ๊กผิด
                 setUsedFoodItems(updatedUsedFoods);
               }}
             />
@@ -453,8 +434,6 @@ const handleMarkItem = (foodName) => {
     </div>
   </div>
 )}
-
-
 
 
 
