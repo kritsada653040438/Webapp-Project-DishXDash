@@ -1,17 +1,14 @@
 "use client";
-
-import { useState, useEffect } from "react";
+import { useRef, useState, useEffect } from "react"; // Consolidate imports here
 import Container from "../components/Container";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import Fireworks from "./fireworks"; // นำเข้า Fireworks component
 import foodList from "./foodlists";
 
-
 export default function Discover() {
   const [foodItems, setFoodItems] = useState(foodList); // ใช้รายการอาหารเริ่มต้นจาก Foodlist.js
   const [usedFoodItems, setUsedFoodItems] = useState([]); // รายการที่สุ่มไปแล้ว
-  const [markedItems, setMarkedItems] = useState([]); // รายการที่ติ๊กให้เป็นสีแดง
   const [newFood, setNewFood] = useState({ name: "", info: "", img: null });
   const [displayedFood, setDisplayedFood] = useState({ name: "Name of Food", info: "Info of Food", img: "/images/randomfood2.jpg" });
   const [isRandomizing, setIsRandomizing] = useState(false);
@@ -24,6 +21,71 @@ export default function Discover() {
   const [editFood, setEditFood] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [settingsClass, setSettingsClass] = useState("-translate-x-full opacity-0");
+  const [isCheckAll, setIsCheckAll] = useState(true); // Default Check All to true
+  const [markedItems, setMarkedItems] = useState([]); // Track unchecked items
+  // Initialize audio elements
+  const fireworksSoundRef = useRef(new Audio("/fireworks.mp3"));
+  const cheeringSoundRef = useRef(new Audio("/cheering.mp3"));
+  const pixelSoundRef = useRef(new Audio("/pixel-song.mp3"));
+  const randomBeepRef = useRef(new Audio("/random-beep.mp3"));
+  useEffect(() => {
+    const audio = pixelSoundRef.current;
+    audio.loop = true;
+    audio.muted = true; // Start muted to improve autoplay chances
+
+    const shouldPlay = sessionStorage.getItem("audioShouldPlay");
+
+    const playAudio = async () => {
+      try {
+        await audio.play();
+        console.log("Audio is playing in loop mode.");
+        if (shouldPlay) {
+          audio.muted = false; // Unmute if autoplay is allowed
+        }
+      } catch (error) {
+        console.log("Autoplay blocked. Waiting for user interaction.");
+        // Listen for a user interaction to unmute the audio
+        document.addEventListener("click", () => {
+          audio.muted = false;
+          audio.play();
+          console.log("Audio unmuted after interaction.");
+        }, { once: true });
+      }
+    };
+
+    playAudio();
+    sessionStorage.setItem("audioShouldPlay", "true");
+
+    // Cleanup to stop audio on component unmount
+    return () => {
+      audio.pause();
+      audio.currentTime = 0;
+    };
+  }, []);
+
+ // Function to handle individual item checks
+const handleMarkItem = (foodName) => {
+  setMarkedItems((prev) => {
+    const updatedMarkedItems = prev.includes(foodName)
+      ? prev.filter((item) => item !== foodName) // Remove from markedItems if checked
+      : [...prev, foodName]; // Add to markedItems if unchecked
+
+    // Update Check All state based on individual checkboxes
+    setIsCheckAll(updatedMarkedItems.length === 0);
+    return updatedMarkedItems;
+  });
+};
+
+// Function to handle Check All toggle
+const handleCheckAll = () => {
+  if (isCheckAll) {
+    setMarkedItems(foodItems.map(food => food.name)); // Uncheck all items
+  } else {
+    setMarkedItems([]); // Check all items
+  }
+  setIsCheckAll(!isCheckAll); // Toggle Check All state
+};
+  
 
   useEffect(() => {
     if (showSettings) {
@@ -68,24 +130,30 @@ export default function Discover() {
   };
 
  // ฟังก์ชันสุ่มอาหาร โดยสุ่มเฉพาะรายการที่ไม่ได้อยู่ใน usedFoodItems
-const handleRandomizeFood = () => {
-  // กรองรายการอาหารเฉพาะที่มีโอกาสสุ่ม (ไม่อยู่ใน usedFoodItems)
-  const availableFoods = foodItems.filter(food => !usedFoodItems.includes(food.name));
+ const handleRandomizeFood = () => {
+  const availableFoods = foodItems.filter(food => !markedItems.includes(food.name));
 
-  // สร้างลิสต์น้ำหนักโอกาสของรายการอาหาร โดยรายการที่ถูกสุ่มแล้วจะมีโอกาสเพียง 5%
-  const weightedFoods = availableFoods.flatMap(food => {
-    const isPreviouslyChosen = usedFoodItems.includes(food.name);
-    return isPreviouslyChosen ? Array(1).fill(food) : Array(20).fill(food); // โอกาส 5% สำหรับรายการที่สุ่มไปแล้ว
-  });
-
-  // ตรวจสอบว่ามีรายการอาหารที่สามารถสุ่มได้หรือไม่
-  if (weightedFoods.length === 0) {
+  if (availableFoods.length === 0) {
     alert("ไม่มีรายการอาหารที่พร้อมสุ่ม กรุณาเลือกอาหารใน Settings");
     return;
   }
 
-  // เริ่มการสุ่มแสดงผลอาหาร
+  // Reset usedFoodItems if more than 2/3 of the list has been used
+  if (usedFoodItems.length >= (2 / 3) * availableFoods.length) {
+    setUsedFoodItems([]);
+  }
+
+  // Create a weighted list with a 5% chance for previously chosen items
+  const weightedFoods = availableFoods.flatMap(food =>
+    usedFoodItems.includes(food.name) ? Array(1).fill(food) : Array(20).fill(food)
+  );
+
+  // Start randomization effect
   setIsRandomizing(true);
+  const audio = randomBeepRef.current;
+    audio.loop = true;
+    audio.volume = 0.1; // Set volume to 20% of maximum volume
+    audio.play();
   const interval = setInterval(() => {
     const randomFood = weightedFoods[Math.floor(Math.random() * weightedFoods.length)];
     setDisplayedFood({
@@ -94,15 +162,24 @@ const handleRandomizeFood = () => {
     });
   }, 100);
 
+  // Final selection after randomization effect
   setTimeout(() => {
     clearInterval(interval);
     const finalFood = weightedFoods[Math.floor(Math.random() * weightedFoods.length)];
     setDisplayedFood(finalFood);
 
+    // Add the final selection to usedFoodItems if not already present
+    if (!usedFoodItems.includes(finalFood.name)) {
+      setUsedFoodItems([...usedFoodItems, finalFood.name]);
+    }
+
     setIsRandomizing(false);
     setIsConfirmEnabled(true);
+    audio.pause(); // Stop the audio
+      audio.currentTime = 0; // Reset to the beginning
   }, 3000);
 };
+
 
   
   
@@ -117,6 +194,10 @@ const handleRandomizeFood = () => {
   
     // แสดงพลุ
     setShowFireworks(true);
+    // Start playback of both sounds
+    fireworksSoundRef.current.play();
+    cheeringSoundRef.current.play();
+
   };
 
   // ฟังก์ชันเปิดป๊อปอัปแสดงข้อมูลอาหาร
@@ -127,39 +208,47 @@ const openModal = (food) => {
   setShowFireworks(false); // ปิดพลุ ถ้าเปิดอยู่
 };
 
-  // ฟังก์ชันปิดป๊อปอัป
 const closeModal = () => {
   setShowModal(false);
   setShowConfirmationMessage(false);
   setShowFireworks(false); // ปิดพลุเมื่อปิดป๊อปอัป
+  
+  // Stop and reset the audio
+  // Stop and reset audio when closing modal
+  fireworksSoundRef.current.pause();
+  cheeringSoundRef.current.pause();
+  fireworksSoundRef.current.currentTime = 0;
+  cheeringSoundRef.current.currentTime = 0;
 };
+
 
 
   // ฟังก์ชันแสดงรายการอาหาร
   const displayFoodList = () => {
-    return foodItems
-      .filter(food => !usedFoodItems.includes(food.name)) // Show items not in usedFoodItems
-      .map((food, index) => (
-        <div
-          key={index}
-          className={`p-4 rounded-lg shadow-md flex justify-between items-center hover:translate-y-[-5px] transition-transform duration-300 ${
-            food.img ? 'bg-[#caed9d]' : 'bg-[#ffd6a5]' // Green if it has an image, orange if not
-          }`}
-          onClick={() => openModal(food)}
+    return foodItems.map((food, index) => (
+      <div
+        key={index}
+        className={`p-4 rounded-lg shadow-md flex justify-between items-center hover:translate-y-[-5px] transition-transform duration-300 ${
+          markedItems.includes(food.name) ? 'bg-red-300' : food.img ? 'bg-[#caed9d]' : 'bg-[#ffd6a5]'
+        }`}
+        onClick={() => openModal(food)}
+      >
+        <span className="truncate w-2/3">{food.name}</span>
+        <button
+          className="bg-red-400 text-white w-8 h-8 rounded-md flex items-center justify-center"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleDeleteFood(index);
+          }}
         >
-          <span className="truncate w-2/3">{food.name}</span>
-          <button
-            className="bg-red-400 text-white w-8 h-8 rounded-md flex items-center justify-center"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleDeleteFood(index);
-            }}
-          >
-            X
-          </button>
-        </div>
-      ));
+          X
+        </button>
+      </div>
+    ));
   };
+  
+  
+  
 
   const closeEditPopup = () => {
     setEditFood(null);
@@ -200,12 +289,7 @@ const handleEditChange = (key, value) => {
   }));
 };
 
-// ฟังก์ชันปรับการติ๊กเลือก (ติ๊กหรือยกเลิก)
-const handleMarkItem = (foodName) => {
-  setMarkedItems(prev =>
-    prev.includes(foodName) ? prev.filter(item => item !== foodName) : [...prev, foodName]
-  );
-};
+
 
 
   const handleEditFood = (food, index) => {
@@ -407,7 +491,7 @@ const handleMarkItem = (foodName) => {
       showSettings ? 'translate-x-0 opacity-100' : '-translate-x-full opacity-0'
     }`}
   >
-    {/* ปุ่มกากะบาทที่มุมขวาบน */}
+    {/* Close Button at the Top Right */}
     <button 
       className="absolute top-4 right-4 text-gray-600 text-xl font-bold" 
       onClick={() => setShowSettings(false)}
@@ -416,19 +500,28 @@ const handleMarkItem = (foodName) => {
     </button>
 
     <h3 className="text-lg font-semibold mb-4">Food List Settings</h3>
+    
+    {/* Check All Checkbox */}
+    <div className="flex items-center space-x-2 mb-4">
+      <input
+        type="checkbox"
+        className="w-5 h-5 appearance-none border border-gray-300 rounded-sm checked:bg-green-200 checked:before:content-['✓'] checked:before:text-white checked:before:text-lg flex items-center justify-center"
+        checked={isCheckAll}
+        onChange={handleCheckAll}
+      />
+      <label className="text-gray-700 font-semibold">Check All</label>
+    </div>
+
+    {/* Food List Items with Individual Checkboxes */}
     <div className="flex flex-col space-y-2">
       {foodItems.map((food, index) => (
         <div
           key={index}
           className={`p-4 rounded-lg shadow-md flex justify-between items-center transition-transform duration-300 ${
-            usedFoodItems.includes(food.name) // สีแดงถ้าอยู่ใน usedFoodItems
-              ? 'bg-red-300'
-              : food.img
-              ? 'bg-[#caed9d]'
-              : 'bg-[#ffd6a5]'
+            markedItems.includes(food.name) ? 'bg-red-300' : food.img ? 'bg-[#caed9d]' : 'bg-[#ffd6a5]'
           }`}
         >
-          <span className="truncate w-2/3 pr-4">{food.name}</span>
+          <span className="truncate w-2/3 pr-4 font-semibold">{food.name}</span>
           <div className="flex items-center space-x-2">
             <button
               className="text-gray-500"
@@ -438,14 +531,9 @@ const handleMarkItem = (foodName) => {
             </button>
             <input
               type="checkbox"
-              className="w-5 h-5 appearance-none border border-gray-300 rounded-sm checked:bg-blue-100 checked:before:content-['✓'] checked:before:text-green-500 checked:before:text-lg flex items-center justify-center"
-              checked={!usedFoodItems.includes(food.name)}
-              onChange={() => {
-                const updatedUsedFoods = usedFoodItems.includes(food.name)
-                  ? usedFoodItems.filter((item) => item !== food.name)
-                  : [...usedFoodItems, food.name];
-                setUsedFoodItems(updatedUsedFoods);
-              }}
+              className="w-5 h-5 appearance-none border border-gray-300 rounded-sm checked:bg-green-200 checked:before:content-['✓'] checked:before:text-white checked:before:text-lg flex items-center justify-center"
+              checked={!markedItems.includes(food.name)} // Checked if not in markedItems
+              onChange={() => handleMarkItem(food.name)}
             />
           </div>
         </div>
@@ -453,8 +541,6 @@ const handleMarkItem = (foodName) => {
     </div>
   </div>
 )}
-
-
 
 
 

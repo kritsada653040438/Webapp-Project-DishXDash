@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Container from "../components/Container";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
@@ -11,7 +11,6 @@ import foodList from "./foodlists";
 export default function Discover() {
   const [foodItems, setFoodItems] = useState(foodList); // ใช้รายการอาหารเริ่มต้นจาก Foodlist.js
   const [usedFoodItems, setUsedFoodItems] = useState([]); // รายการที่สุ่มไปแล้ว
-  const [markedItems, setMarkedItems] = useState([]); // รายการที่ติ๊กให้เป็นสีแดง
   const [newFood, setNewFood] = useState({ name: "", info: "", img: null });
   const [displayedFood, setDisplayedFood] = useState({ name: "Name of Food", info: "Info of Food", img: "/images/randomfood2.jpg" });
   const [isRandomizing, setIsRandomizing] = useState(false);
@@ -23,6 +22,45 @@ export default function Discover() {
   const [showSettings, setShowSettings] = useState(false);
   const [editFood, setEditFood] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [settingsClass, setSettingsClass] = useState("-translate-x-full opacity-0");
+  const [isCheckAll, setIsCheckAll] = useState(true); // Default Check All to true
+const [markedItems, setMarkedItems] = useState([]); // Track unchecked items
+
+ // Function to handle individual item checks
+const handleMarkItem = (foodName) => {
+  setMarkedItems((prev) => {
+    const updatedMarkedItems = prev.includes(foodName)
+      ? prev.filter((item) => item !== foodName) // Remove from markedItems if checked
+      : [...prev, foodName]; // Add to markedItems if unchecked
+
+    // Update Check All state based on individual checkboxes
+    setIsCheckAll(updatedMarkedItems.length === 0);
+    return updatedMarkedItems;
+  });
+};
+
+// Function to handle Check All toggle
+const handleCheckAll = () => {
+  if (isCheckAll) {
+    setMarkedItems(foodItems.map(food => food.name)); // Uncheck all items
+  } else {
+    setMarkedItems([]); // Check all items
+  }
+  setIsCheckAll(!isCheckAll); // Toggle Check All state
+};
+  
+
+  useEffect(() => {
+    if (showSettings) {
+      setSettingsClass("translate-x-0 opacity-100");
+    } else {
+      setSettingsClass("-translate-x-full opacity-0");
+    }
+  }, [showSettings]);
+
+  const toggleSettings = () => {
+    setShowSettings(!showSettings);
+  };
 
   const truncateText = (text, limit) => {
     return text.length > limit ? text.substring(0, limit) + "..." : text;
@@ -55,23 +93,25 @@ export default function Discover() {
   };
 
  // ฟังก์ชันสุ่มอาหาร โดยสุ่มเฉพาะรายการที่ไม่ได้อยู่ใน usedFoodItems
-const handleRandomizeFood = () => {
-  // กรองรายการอาหารเฉพาะที่มีโอกาสสุ่ม (ไม่อยู่ใน usedFoodItems)
-  const availableFoods = foodItems.filter(food => !usedFoodItems.includes(food.name));
+ const handleRandomizeFood = () => {
+  const availableFoods = foodItems.filter(food => !markedItems.includes(food.name));
 
-  // สร้างลิสต์น้ำหนักโอกาสของรายการอาหาร โดยรายการที่ถูกสุ่มแล้วจะมีโอกาสเพียง 5%
-  const weightedFoods = availableFoods.flatMap(food => {
-    const isPreviouslyChosen = usedFoodItems.includes(food.name);
-    return isPreviouslyChosen ? Array(1).fill(food) : Array(20).fill(food); // โอกาส 5% สำหรับรายการที่สุ่มไปแล้ว
-  });
-
-  // ตรวจสอบว่ามีรายการอาหารที่สามารถสุ่มได้หรือไม่
-  if (weightedFoods.length === 0) {
+  if (availableFoods.length === 0) {
     alert("ไม่มีรายการอาหารที่พร้อมสุ่ม กรุณาเลือกอาหารใน Settings");
     return;
   }
 
-  // เริ่มการสุ่มแสดงผลอาหาร
+  // Reset usedFoodItems if more than 2/3 of the list has been used
+  if (usedFoodItems.length >= (2 / 3) * availableFoods.length) {
+    setUsedFoodItems([]);
+  }
+
+  // Create a weighted list with a 5% chance for previously chosen items
+  const weightedFoods = availableFoods.flatMap(food =>
+    usedFoodItems.includes(food.name) ? Array(1).fill(food) : Array(20).fill(food)
+  );
+
+  // Start randomization effect
   setIsRandomizing(true);
   const interval = setInterval(() => {
     const randomFood = weightedFoods[Math.floor(Math.random() * weightedFoods.length)];
@@ -81,15 +121,22 @@ const handleRandomizeFood = () => {
     });
   }, 100);
 
+  // Final selection after randomization effect
   setTimeout(() => {
     clearInterval(interval);
     const finalFood = weightedFoods[Math.floor(Math.random() * weightedFoods.length)];
     setDisplayedFood(finalFood);
 
+    // Add the final selection to usedFoodItems if not already present
+    if (!usedFoodItems.includes(finalFood.name)) {
+      setUsedFoodItems([...usedFoodItems, finalFood.name]);
+    }
+
     setIsRandomizing(false);
     setIsConfirmEnabled(true);
   }, 3000);
 };
+
 
   
   
@@ -123,14 +170,13 @@ const closeModal = () => {
 
 
   // ฟังก์ชันแสดงรายการอาหาร
-  // ฟังก์ชันแสดงรายการอาหารใน Dash List โดยแสดงเฉพาะรายการที่ไม่อยู่ใน usedFoodItems (ติ๊กถูกใน Settings)
-const displayFoodList = () => {
-  return foodItems
-    .filter(food => !usedFoodItems.includes(food.name)) // แสดงเฉพาะรายการที่ไม่มีใน usedFoodItems
-    .map((food, index) => (
+  const displayFoodList = () => {
+    return foodItems.map((food, index) => (
       <div
         key={index}
-        className="p-4 rounded-lg shadow-md flex justify-between items-center hover:translate-y-[-5px] transition-transform duration-300 bg-[#caed9d]" // สีเขียวสำหรับรายการที่แสดงใน Dash List
+        className={`p-4 rounded-lg shadow-md flex justify-between items-center hover:translate-y-[-5px] transition-transform duration-300 ${
+          markedItems.includes(food.name) ? 'bg-red-300' : food.img ? 'bg-[#caed9d]' : 'bg-[#ffd6a5]'
+        }`}
         onClick={() => openModal(food)}
       >
         <span className="truncate w-2/3">{food.name}</span>
@@ -145,12 +191,10 @@ const displayFoodList = () => {
         </button>
       </div>
     ));
-};
-
-
-  const toggleSettings = () => {
-    setShowSettings(!showSettings);
   };
+  
+  
+  
 
   const closeEditPopup = () => {
     setEditFood(null);
@@ -191,12 +235,7 @@ const handleEditChange = (key, value) => {
   }));
 };
 
-// ฟังก์ชันปรับการติ๊กเลือก (ติ๊กหรือยกเลิก)
-const handleMarkItem = (foodName) => {
-  setMarkedItems(prev =>
-    prev.includes(foodName) ? prev.filter(item => item !== foodName) : [...prev, foodName]
-  );
-};
+
 
 
   const handleEditFood = (food, index) => {
@@ -208,63 +247,63 @@ const handleMarkItem = (foodName) => {
 
   return (
     <main
-      className="bg-cover bg-center bg-no-repeat min-h-screen flex flex-col"
+      className="bg-cover bg-center bg-no-repeat min-h-screen flex flex-col font-sarabun font-bold"
       style={{
         backgroundImage: "url('/images/window.jpg')", // ตั้งค่าพื้นหลังจากภาพ food_bg.jpg
       }}>
       <Navbar />
       <Container>
-      <div className="font-sans bg-opacity-75 bg-white p-10 min-h-screen flex flex-col items-center">
-      <h1 className="text-7xl text-center text-[#9379C2] font-bold font-serif mb-10 drop-shadow-lg shadow-[#a6a5d1] transition-all duration-300 ease-in-out hover:scale-105 hover:text-[#B09AC7]">
-  Dish Randomizer
-</h1>
+  <div className="font-sans bg-opacity-75 bg-white p-10 min-h-screen flex flex-col items-center">
+    <h1 className="text-5xl sm:text-6xl md:text-7xl text-center text-[#9379C2] font-bold font-serif mb-10 drop-shadow-lg shadow-[#a6a5d1] transition-all duration-300 ease-in-out hover:scale-105 hover:text-[#B09AC7]">
+      Dish Randomizer
+    </h1>
 
-          <div className="flex justify-between space-x-8 w-full max-w-5xl mb-10">
-            <div className="bg-[#d6e6f2] w-1/2 p-8 rounded-lg shadow-lg flex flex-col items-center">
-              <input
-                className="w-full p-3 mb-4 border rounded-lg"
-                type="text"
-                placeholder="เพิ่มชื่ออาหารที่นี่"
-                maxLength="30"
-                value={newFood.name}
-                onChange={(e) => setNewFood({ ...newFood, name: e.target.value.substring(0, 30) })}
-              />
-              <div className="w-full p-3 mb-4 border rounded-lg bg-white flex items-center justify-center">
-                <input
-                  id="fileInput"
-                  className="w-full cursor-pointer"
-                  type="file"
-                  onChange={(e) =>
-                    setNewFood({ ...newFood, img: e.target.files[0] ? URL.createObjectURL(e.target.files[0]) : null })
-                  }
-                />
-              </div>
-              <textarea
-                className="w-full p-3 mb-4 border rounded-lg resize-y min-h-[150px] max-h-[150px]"
-                placeholder="เพิ่มข้อมูลอาหารที่นี่"
-                value={newFood.info}
-                onChange={(e) => {
-                  const inputText = e.target.value;
-                  const lines = inputText.split('\n');
-                  if (inputText.length <= 1000 && lines.length <= 30) {
-                    setNewFood({ ...newFood, info: inputText });
-                  } else {
-                    const truncatedText = inputText.slice(0, 1000);
-                    const truncatedLines = truncatedText.split('\n').slice(0, 30).join('\n');
-                    alert("สามารถป้อนข้อมูลได้สูงสุด 1000 ตัวอักษร และไม่เกิน 30 บรรทัด");
-                    setNewFood({ ...newFood, info: truncatedLines });
-                  }
-                }}
-              ></textarea>
-              <button
-                className="w-full bg-[#c3bef0] p-4 rounded-lg text-white shadow-lg hover:bg-[#a59aca]"
-                onClick={handleAddFood}
-              >
-                ADD FOOD
-              </button>
-            </div>
+    <div className="flex flex-col min-733:flex-row justify-between space-y-8 min-733:space-y-0 min-733:space-x-8 w-full max-w-5xl mb-10">
+  <div className="bg-[#d6e6f2] w-full min-733:w-1/2 p-8 rounded-lg shadow-lg flex flex-col items-center">
+        <input
+          className="w-full p-3 mb-4 border rounded-lg"
+          type="text"
+          placeholder="เพิ่มชื่ออาหารที่นี่"
+          maxLength="30"
+          value={newFood.name}
+          onChange={(e) => setNewFood({ ...newFood, name: e.target.value.substring(0, 30) })}
+        />
+        <div className="w-full p-3 mb-4 border rounded-lg bg-white flex items-center justify-center">
+          <input
+            id="fileInput"
+            className="w-full cursor-pointer"
+            type="file"
+            onChange={(e) =>
+              setNewFood({ ...newFood, img: e.target.files[0] ? URL.createObjectURL(e.target.files[0]) : null })
+            }
+          />
+        </div>
+        <textarea
+          className="w-full p-3 mb-4 border rounded-lg resize-y min-h-[150px] max-h-[150px]"
+          placeholder="เพิ่มข้อมูลอาหารที่นี่"
+          value={newFood.info}
+          onChange={(e) => {
+            const inputText = e.target.value;
+            const lines = inputText.split('\n');
+            if (inputText.length <= 1000 && lines.length <= 30) {
+              setNewFood({ ...newFood, info: inputText });
+            } else {
+              const truncatedText = inputText.slice(0, 1000);
+              const truncatedLines = truncatedText.split('\n').slice(0, 30).join('\n');
+              alert("สามารถป้อนข้อมูลได้สูงสุด 1000 ตัวอักษร และไม่เกิน 30 บรรทัด");
+              setNewFood({ ...newFood, info: truncatedLines });
+            }
+          }}
+        ></textarea>
+        <button
+          className="w-full bg-[#c3bef0] p-4 rounded-lg text-white shadow-lg hover:bg-[#a59aca]"
+          onClick={handleAddFood}
+        >
+          ADD FOOD
+        </button>
+      </div>
 
-            <div className="bg-[#e1eec3] w-1/2 p-8 rounded-lg shadow-lg flex flex-col items-center relative">
+      <div className="bg-[#e1eec3] min-733:w-1/2 w-full p-8 rounded-lg shadow-lg flex flex-col items-center relative">
               <div className="w-full p-3 bg-white text-center rounded-lg mb-4">
                 {displayedFood.name}
               </div>
@@ -277,7 +316,7 @@ const handleMarkItem = (foodName) => {
               <div className="w-full p-3 bg-white text-center rounded-lg mb-4">
                 {truncateText(displayedFood.info, 30)}
               </div>
-              <div className="flex space-x-4">
+              <div className="flex space-x-4 w-full">
                 <button
                   className={`w-full p-4 rounded-lg text-white shadow-lg ${
                     isRandomizing ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#c3bef0] hover:bg-[#a59aca]'
@@ -306,36 +345,43 @@ const handleMarkItem = (foodName) => {
             </div>
           </div>
 
-          {/* Dash List Section */}
-          <div className="bg-white w-full max-w-5xl p-8 rounded-lg shadow-lg mb-10">
-            <h3 className="text-xl font-semibold mb-4">Dash List</h3>
-            <p className="text-gray-600 mb-4">No image upload for some food list</p>
-            <div className="grid grid-cols-5 gap-4">
-              {displayFoodList()}
-            </div>
-          </div>
-          <div className="flex space-x-4">
-            <button
-              className="bg-[#7fd8be] p-4 rounded-lg text-white shadow-lg hover:bg-[#6fc1a4]"
-              onClick={resetFoodList}
-            >
-              RESET
-            </button>
-            <button
-              className="bg-[#c3bef0] p-4 rounded-lg text-white shadow-lg hover:bg-[#a59aca]"
-              onClick={deleteAllFoodItems}
-            >
-              DELETE ALL
-            </button>
-            <button
-              className="bg-[#f8b400] p-4 rounded-lg text-white shadow-lg hover:bg-[#f39c12]"
-              onClick={toggleSettings}
-            >
-              SETTINGS
-            </button>
-          </div>
-        </div>
-      </Container>
+    <div className="bg-white w-full max-w-5xl p-8 rounded-lg shadow-lg mb-10">
+  <h3 className="text-xl font-semibold mb-4">Dash List</h3>
+  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 max-834:grid-cols-3 max-640:grid-cols-2 max-431:grid-cols-1 gap-4">
+    {displayFoodList()}
+  </div>
+</div>
+
+
+
+
+
+<div className="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4 w-full max-w-5xl">
+    {/* ปุ่ม */}
+    <div className="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4 w-full max-w-5xl">
+  <button
+    className="w-full bg-[#a8e6cf] p-4 rounded-lg text-white shadow-lg hover:bg-[#88d8b0]"
+    onClick={resetFoodList}
+  >
+    RESET
+  </button>
+  <button
+    className="w-full bg-[#f5a9ac] p-4 rounded-lg text-white shadow-lg hover:bg-[#f2888b]"
+    onClick={deleteAllFoodItems}
+  >
+    DELETE ALL
+  </button>
+  <button
+    className="w-full bg-[#a0d8ef] p-4 rounded-lg text-white shadow-lg hover:bg-[#8ac9e2]"
+    onClick={toggleSettings}
+  >
+    SETTINGS
+  </button>
+</div>
+</div>
+</div>
+</Container>
+
 
       {/* ป๊อปอัปสำหรับแสดงข้อความยืนยัน */}
     {showModal && (
@@ -385,10 +431,13 @@ const handleMarkItem = (foodName) => {
         </div>
       </div>
     )}
-// การตั้งค่า Settings ที่ใช้จัดการติ๊กถูกและผิด
 {showSettings && (
-  <div className={`fixed inset-y-0 left-0 bg-white shadow-lg p-6 w-64 transition-transform duration-300 transform ${showSettings ? 'translate-x-0' : '-translate-x-full'}`}>
-    {/* ปุ่มกากะบาทที่มุมขวาบน */}
+  <div
+    className={`fixed inset-y-0 left-0 bg-white shadow-lg p-6 w-64 transform transition-transform transition-opacity duration-500 ease-out ${
+      showSettings ? 'translate-x-0 opacity-100' : '-translate-x-full opacity-0'
+    }`}
+  >
+    {/* Close Button at the Top Right */}
     <button 
       className="absolute top-4 right-4 text-gray-600 text-xl font-bold" 
       onClick={() => setShowSettings(false)}
@@ -397,20 +446,29 @@ const handleMarkItem = (foodName) => {
     </button>
 
     <h3 className="text-lg font-semibold mb-4">Food List Settings</h3>
+    
+    {/* Check All Checkbox */}
+    <div className="flex items-center space-x-2 mb-4">
+      <input
+        type="checkbox"
+        className="w-5 h-5 appearance-none border border-gray-300 rounded-sm checked:bg-green-200 checked:before:content-['✓'] checked:before:text-white checked:before:text-lg flex items-center justify-center"
+        checked={isCheckAll}
+        onChange={handleCheckAll}
+      />
+      <label className="text-gray-700 font-semibold">Check All</label>
+    </div>
+
+    {/* Food List Items with Individual Checkboxes */}
     <div className="flex flex-col space-y-2">
       {foodItems.map((food, index) => (
         <div
           key={index}
           className={`p-4 rounded-lg shadow-md flex justify-between items-center transition-transform duration-300 ${
-            usedFoodItems.includes(food.name) // สีแดงถ้าอยู่ใน usedFoodItems
-              ? 'bg-red-300'
-              : food.img
-              ? 'bg-[#caed9d]'
-              : 'bg-[#ffd6a5]'
+            markedItems.includes(food.name) ? 'bg-red-300' : food.img ? 'bg-[#caed9d]' : 'bg-[#ffd6a5]'
           }`}
         >
-          <span className="truncate w-2/3 pr-4">{food.name}</span> {/* เพิ่ม pr-4 เพื่อระยะห่างทางขวา */}
-          <div className="flex items-center space-x-2"> {/* ใช้ space-x-2 เพื่อเพิ่มระยะห่างระหว่างปุ่ม */}
+          <span className="truncate w-2/3 pr-4 font-semibold">{food.name}</span>
+          <div className="flex items-center space-x-2">
             <button
               className="text-gray-500"
               onClick={() => handleEditFood(food, index)}
@@ -419,14 +477,9 @@ const handleMarkItem = (foodName) => {
             </button>
             <input
               type="checkbox"
-              className="w-5 h-5 appearance-none border border-gray-300 rounded-sm checked:bg-blue-100 checked:before:content-['✓'] checked:before:text-green-500 checked:before:text-lg flex items-center justify-center"
-              checked={!usedFoodItems.includes(food.name)} // ติ๊กถูกถ้าไม่อยู่ใน usedFoodItems
-              onChange={() => {
-                const updatedUsedFoods = usedFoodItems.includes(food.name)
-                  ? usedFoodItems.filter((item) => item !== food.name) // ลบออกจาก usedFoodItems ถ้าติ๊กถูก
-                  : [...usedFoodItems, food.name]; // เพิ่มเข้า usedFoodItems ถ้าติ๊กผิด
-                setUsedFoodItems(updatedUsedFoods);
-              }}
+              className="w-5 h-5 appearance-none border border-gray-300 rounded-sm checked:bg-green-200 checked:before:content-['✓'] checked:before:text-white checked:before:text-lg flex items-center justify-center"
+              checked={!markedItems.includes(food.name)} // Checked if not in markedItems
+              onChange={() => handleMarkItem(food.name)}
             />
           </div>
         </div>
