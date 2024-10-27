@@ -192,7 +192,7 @@ export default function Toppick() {
     return (
         <main className="bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
             <Container>
-                <Navbar />
+                <Navbar  session={session}/>
                 <div className="flex-grow py-12 px-4">
                     <div className="text-center max-w-2xl mx-auto mb-12">
                         <h1 className="text-4xl font-bold text-gray-800 mb-4">
