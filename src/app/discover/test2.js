@@ -1,15 +1,15 @@
 "use client";
-
-import { useState, useEffect } from "react";
+import { useRef, useState, useEffect } from "react"; // Consolidate imports here
 import Container from "../components/Container";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import Fireworks from "./fireworks"; // นำเข้า Fireworks component
 import foodList from "./foodlists";
-
-
+import { useSession } from "next-auth/react";
+import { redirect } from "next/navigation";
 export default function Discover() {
-  const [foodItems, setFoodItems] = useState(foodList); // ใช้รายการอาหารเริ่มต้นจาก Foodlist.js
+  const { data: session, status } = useSession();
+  const [foodItems, setFoodItems] = useState(foodList); // ใช้ foodList เป็นค่าเริ่มต้นเมื่อไม่ได้ล็อกอิน
   const [usedFoodItems, setUsedFoodItems] = useState([]); // รายการที่สุ่มไปแล้ว
   const [newFood, setNewFood] = useState({ name: "", info: "", img: null });
   const [displayedFood, setDisplayedFood] = useState({ name: "Name of Food", info: "Info of Food", img: "/images/randomfood2.jpg" });
@@ -24,7 +24,79 @@ export default function Discover() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [settingsClass, setSettingsClass] = useState("-translate-x-full opacity-0");
   const [isCheckAll, setIsCheckAll] = useState(true); // Default Check All to true
-const [markedItems, setMarkedItems] = useState([]); // Track unchecked items
+  const [markedItems, setMarkedItems] = useState([]); // Track unchecked items
+  // Initialize audio elements
+  const fireworksSoundRef = useRef(null);
+  const cheeringSoundRef = useRef(null);
+  const pixelSoundRef = useRef(null);
+  const randomBeepRef = useRef(null);
+
+  
+ // โหลดรายการอาหารของผู้ใช้จากฐานข้อมูลเมื่อผู้ใช้ล็อกอิน
+ useEffect(() => {
+  const fetchUserFoodItems = async () => {
+    if (status === "authenticated" && session?.user?.id) {
+      try {
+        const response = await fetch(`/api/food?userId=${session.user.id}`);
+        const data = await response.json();
+        setFoodItems(data); // อัปเดต foodItems เมื่อผู้ใช้ล็อกอิน
+      } catch (error) {
+        console.error("Error fetching food items:", error);
+      }
+    } else {
+      setFoodItems(foodList); // หากไม่ได้ล็อกอิน ใช้ foodList
+    }
+  };
+
+  fetchUserFoodItems();
+}, [status, session]);
+  
+  
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      fireworksSoundRef.current = new Audio("/fireworks.mp3");
+      cheeringSoundRef.current = new Audio("/cheering.mp3");
+      pixelSoundRef.current = new Audio("/pixel-song.mp3");
+      randomBeepRef.current = new Audio("/random-beep.mp3");
+    }
+  
+    const audio = pixelSoundRef.current;
+    audio.loop = true;
+    audio.volume = 0.1;
+    audio.muted = true; // Start muted to improve autoplay chances
+
+    const shouldPlay = sessionStorage.getItem("audioShouldPlay");
+
+    const playAudio = async () => {
+      try {
+        await audio.play();
+        console.log("Audio is playing in loop mode.");
+        if (shouldPlay) {
+          audio.muted = false; // Unmute if autoplay is allowed
+          audio.volume = 0.1;
+        }
+      } catch (error) {
+        console.log("Autoplay blocked. Waiting for user interaction.");
+        // Listen for a user interaction to unmute the audio
+        document.addEventListener("click", () => {
+          audio.muted = false;
+          audio.play();
+          audio.volume = 0.1;
+          console.log("Audio unmuted after interaction.");
+        }, { once: true });
+      }
+    };
+
+    playAudio();
+    sessionStorage.setItem("audioShouldPlay", "true");
+
+    // Cleanup to stop audio on component unmount
+    return () => {
+      audio.pause();
+      audio.currentTime = 0;
+    };
+  }, []);
 
  // Function to handle individual item checks
 const handleMarkItem = (foodName) => {
@@ -66,20 +138,68 @@ const handleCheckAll = () => {
     return text.length > limit ? text.substring(0, limit) + "..." : text;
   };
 
-  const handleAddFood = () => {
+  // เพิ่มอาหาร
+  const handleAddFood = async () => {
     if (!newFood.name || !newFood.info) {
       alert("กรุณาใส่ชื่อและข้อมูลของอาหาร");
       return;
     }
-    setFoodItems([...foodItems, newFood]);
+
+    if (status === "authenticated" && session?.user?.id) {
+      try {
+        const response = await fetch("/api/food", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ ...newFood, userId: session.user.id }),
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to add food");
+        }
+
+        const addedFood = await response.json();
+        setFoodItems([...foodItems, addedFood]); // เพิ่มอาหารใหม่ในฐานข้อมูล
+      } catch (error) {
+        console.error("Error adding food item:", error);
+      }
+    } else {
+      setFoodItems([...foodItems, { ...newFood }]); // กรณีไม่ได้ล็อกอิน เพิ่มข้อมูลใน State ชั่วคราว
+    }
+
     setNewFood({ name: "", info: "", img: null });
-    document.getElementById("fileInput").value = null;
   };
 
-  const handleDeleteFood = (index) => {
-    const updatedFoodItems = foodItems.filter((_, i) => i !== index);
-    setFoodItems(updatedFoodItems);
+  // ลบอาหาร
+  const handleDeleteFood = async (foodId) => {
+    if (status === "authenticated" && session?.user?.id) {
+      try {
+        const response = await fetch(`/api/food/${foodId}`, {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ userId: session.user.id }),
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to delete food item");
+        }
+
+        setFoodItems(foodItems.filter(food => food._id !== foodId));
+      } catch (error) {
+        console.error("Error deleting food item:", error);
+      }
+    } else {
+      setFoodItems(foodItems.filter(food => food.name !== foodId));
+    }
   };
+  
+  
+
+  
+
 
   const resetFoodList = () => {
     setUsedFoodItems([]);
@@ -113,6 +233,10 @@ const handleCheckAll = () => {
 
   // Start randomization effect
   setIsRandomizing(true);
+  const audio = randomBeepRef.current;
+    audio.loop = true;
+    audio.volume = 0.1; // Set volume to 20% of maximum volume
+    audio.play();
   const interval = setInterval(() => {
     const randomFood = weightedFoods[Math.floor(Math.random() * weightedFoods.length)];
     setDisplayedFood({
@@ -134,6 +258,8 @@ const handleCheckAll = () => {
 
     setIsRandomizing(false);
     setIsConfirmEnabled(true);
+    audio.pause(); // Stop the audio
+      audio.currentTime = 0; // Reset to the beginning
   }, 3000);
 };
 
@@ -151,6 +277,10 @@ const handleCheckAll = () => {
   
     // แสดงพลุ
     setShowFireworks(true);
+    // Start playback of both sounds
+    fireworksSoundRef.current.play();
+    cheeringSoundRef.current.play();
+
   };
 
   // ฟังก์ชันเปิดป๊อปอัปแสดงข้อมูลอาหาร
@@ -161,16 +291,27 @@ const openModal = (food) => {
   setShowFireworks(false); // ปิดพลุ ถ้าเปิดอยู่
 };
 
-  // ฟังก์ชันปิดป๊อปอัป
 const closeModal = () => {
   setShowModal(false);
   setShowConfirmationMessage(false);
   setShowFireworks(false); // ปิดพลุเมื่อปิดป๊อปอัป
+  
+  // Stop and reset the audio
+  // Stop and reset audio when closing modal
+  fireworksSoundRef.current.pause();
+  cheeringSoundRef.current.pause();
+  fireworksSoundRef.current.currentTime = 0;
+  cheeringSoundRef.current.currentTime = 0;
 };
+
 
 
   // ฟังก์ชันแสดงรายการอาหาร
   const displayFoodList = () => {
+    if (!foodItems || foodItems.length === 0) {
+      return <p>No food items</p>;
+    }
+  
     return foodItems.map((food, index) => (
       <div
         key={index}
@@ -184,7 +325,7 @@ const closeModal = () => {
           className="bg-red-400 text-white w-8 h-8 rounded-md flex items-center justify-center"
           onClick={(e) => {
             e.stopPropagation();
-            handleDeleteFood(index);
+            handleDeleteFood(food._id);
           }}
         >
           X
@@ -193,6 +334,7 @@ const closeModal = () => {
     ));
   };
   
+
   
   
 
@@ -251,7 +393,7 @@ const handleEditChange = (key, value) => {
       style={{
         backgroundImage: "url('/images/window.jpg')", // ตั้งค่าพื้นหลังจากภาพ food_bg.jpg
       }}>
-      <Navbar />
+      <Navbar session={session} />
       <Container>
   <div className="font-sans bg-opacity-75 bg-white p-10 min-h-screen flex flex-col items-center">
     <h1 className="text-5xl sm:text-6xl md:text-7xl text-center text-[#9379C2] font-bold font-serif mb-10 drop-shadow-lg shadow-[#a6a5d1] transition-all duration-300 ease-in-out hover:scale-105 hover:text-[#B09AC7]">
