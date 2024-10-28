@@ -357,25 +357,54 @@ const closeModal = () => {
   };
 
   // ฟังก์ชันบันทึกข้อมูลที่แก้ไขแล้ว รวมถึงการอัปเดตรูปภาพใหม่
-const handleSaveEdit = () => {
-  // สร้างสำเนาของ foodItems แล้วแก้ไขรายการที่เลือก
-  const updatedFoodItems = [...foodItems];
+  const handleSaveEdit = async () => {
+    // สร้างสำเนาของ foodItems แล้วแก้ไขรายการที่เลือก
+    const updatedFoodItems = [...foodItems];
+    updatedFoodItems[editFood.index] = {
+      ...updatedFoodItems[editFood.index],
+      name: editFood.name,
+      info: editFood.info,
+      img: editFood.img, // อัปเดตรูปภาพใหม่ (URL)
+    };
   
-  // เช็คและอัปเดตค่ารูปภาพ
-  updatedFoodItems[editFood.index] = {
-    ...updatedFoodItems[editFood.index],
-    name: editFood.name,
-    info: editFood.info,
-    img: editFood.img, // ตั้งค่ารูปภาพใหม่ (URL)
+    if (status === "authenticated" && session?.user?.id) {
+      try {
+        console.log("Attempting to save edit to database"); // ตรวจสอบจุดนี้
+        console.log("Edit Food ID:", editFood._id); // ตรวจสอบว่า `_id` มีค่าหรือไม่
+        console.log("User ID:", session.user.id);
+  
+        // ส่งคำขอ PUT เพื่ออัปเดตในฐานข้อมูล
+        const response = await fetch(`/api/food/${editFood._id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: editFood.name, info: editFood.info, img: editFood.img, userId: session.user.id }),
+        });
+  
+        if (!response.ok) {
+          console.error("Error response from server:", response.status);
+          throw new Error("Failed to save changes");
+        }
+  
+        // อัปเดต state ด้วยข้อมูลใหม่ที่บันทึกสำเร็จแล้ว
+        const updatedFood = await response.json();
+        updatedFoodItems[editFood.index] = updatedFood; // ใช้ข้อมูลใหม่จากฐานข้อมูล
+        setFoodItems(updatedFoodItems); // อัปเดต list ของ foodItems ใน state
+        console.log("Edit successful, food item updated in state");
+      } catch (error) {
+        console.error("Error saving food item:", error);
+      }
+    } else {
+      // หากไม่ได้ล็อกอิน อัปเดตข้อมูลใน state โดยตรง
+      setFoodItems(updatedFoodItems);
+      console.log("Saved locally without login");
+    }
+  
+    // ปิด modal หลังจากบันทึกสำเร็จหรืออัปเดต state
+    setIsEditModalOpen(false);
   };
-
-  // ตั้งค่า foodItems ใหม่ เพื่อให้ React รีเรนเดอร์
-  setFoodItems(updatedFoodItems);
-
-  // ปิดป๊อปอัปหลังจากบันทึก
-  setIsEditModalOpen(false);
-};
-
+  
+  
+  
 // ฟังก์ชันสำหรับการอัปเดตข้อมูลที่ถูกแก้ไข (รวมถึงการอัปโหลดรูปภาพใหม่)
 const handleEditChange = (key, value) => {
   // อัปเดตค่าใน editFood โดยตรง
