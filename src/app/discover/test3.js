@@ -177,8 +177,9 @@ const handleCheckAll = () => {
   };
 
   // ลบอาหาร
-  const handleDeleteFood = async (foodId) => {
+  const handleDeleteFood = async (foodId, index) => {
     if (status === "authenticated" && session?.user?.id) {
+      // When logged in, delete food from the backend and update state
       try {
         const response = await fetch(`/api/food/${foodId}`, {
           method: "DELETE",
@@ -187,17 +188,19 @@ const handleCheckAll = () => {
           },
           body: JSON.stringify({ userId: session.user.id }),
         });
-
+  
         if (!response.ok) {
           throw new Error("Failed to delete food item");
         }
-
-        setFoodItems(foodItems.filter(food => food._id !== foodId));
+  
+        // Remove the item by its ID from the state
+        setFoodItems((prevItems) => prevItems.filter((food) => food._id !== foodId));
       } catch (error) {
         console.error("Error deleting food item:", error);
       }
     } else {
-      setFoodItems(foodItems.filter(food => food.name !== foodId));
+      // When not logged in, delete food based on the array index
+      setFoodItems((prevItems) => prevItems.filter((_, i) => i !== index));
     }
   };
   
@@ -330,7 +333,7 @@ const closeModal = () => {
           className="bg-red-400 text-white w-8 h-8 rounded-md flex items-center justify-center"
           onClick={(e) => {
             e.stopPropagation();
-            handleDeleteFood(food._id);
+            handleDeleteFood(food._id, index); // Pass both ID and index
           }}
         >
           X
@@ -354,25 +357,54 @@ const closeModal = () => {
   };
 
   // ฟังก์ชันบันทึกข้อมูลที่แก้ไขแล้ว รวมถึงการอัปเดตรูปภาพใหม่
-const handleSaveEdit = () => {
-  // สร้างสำเนาของ foodItems แล้วแก้ไขรายการที่เลือก
-  const updatedFoodItems = [...foodItems];
+  const handleSaveEdit = async () => {
+    // สร้างสำเนาของ foodItems แล้วแก้ไขรายการที่เลือก
+    const updatedFoodItems = [...foodItems];
+    updatedFoodItems[editFood.index] = {
+      ...updatedFoodItems[editFood.index],
+      name: editFood.name,
+      info: editFood.info,
+      img: editFood.img, // อัปเดตรูปภาพใหม่ (URL)
+    };
   
-  // เช็คและอัปเดตค่ารูปภาพ
-  updatedFoodItems[editFood.index] = {
-    ...updatedFoodItems[editFood.index],
-    name: editFood.name,
-    info: editFood.info,
-    img: editFood.img, // ตั้งค่ารูปภาพใหม่ (URL)
+    if (status === "authenticated" && session?.user?.id) {
+      try {
+        console.log("Attempting to save edit to database"); // ตรวจสอบจุดนี้
+        console.log("Edit Food ID:", editFood._id); // ตรวจสอบว่า `_id` มีค่าหรือไม่
+        console.log("User ID:", session.user.id);
+  
+        // ส่งคำขอ PUT เพื่ออัปเดตในฐานข้อมูล
+        const response = await fetch(`/api/food/${editFood._id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: editFood.name, info: editFood.info, img: editFood.img, userId: session.user.id }),
+        });
+  
+        if (!response.ok) {
+          console.error("Error response from server:", response.status);
+          throw new Error("Failed to save changes");
+        }
+  
+        // อัปเดต state ด้วยข้อมูลใหม่ที่บันทึกสำเร็จแล้ว
+        const updatedFood = await response.json();
+        updatedFoodItems[editFood.index] = updatedFood; // ใช้ข้อมูลใหม่จากฐานข้อมูล
+        setFoodItems(updatedFoodItems); // อัปเดต list ของ foodItems ใน state
+        console.log("Edit successful, food item updated in state");
+      } catch (error) {
+        console.error("Error saving food item:", error);
+      }
+    } else {
+      // หากไม่ได้ล็อกอิน อัปเดตข้อมูลใน state โดยตรง
+      setFoodItems(updatedFoodItems);
+      console.log("Saved locally without login");
+    }
+  
+    // ปิด modal หลังจากบันทึกสำเร็จหรืออัปเดต state
+    setIsEditModalOpen(false);
   };
-
-  // ตั้งค่า foodItems ใหม่ เพื่อให้ React รีเรนเดอร์
-  setFoodItems(updatedFoodItems);
-
-  // ปิดป๊อปอัปหลังจากบันทึก
-  setIsEditModalOpen(false);
-};
-
+  
+  
+  
 // ฟังก์ชันสำหรับการอัปเดตข้อมูลที่ถูกแก้ไข (รวมถึงการอัปโหลดรูปภาพใหม่)
 const handleEditChange = (key, value) => {
   // อัปเดตค่าใน editFood โดยตรง
@@ -394,141 +426,156 @@ const handleEditChange = (key, value) => {
 
   return (
     <main
-      className="bg-cover bg-center bg-no-repeat min-h-screen flex flex-col font-sarabun font-bold"
-      style={{
-        backgroundImage: "url('/images/window.jpg')", // ตั้งค่าพื้นหลังจากภาพ food_bg.jpg
-      }}>
-      <Navbar session={session} />
-      <Container>
-  <div className="font-sans bg-opacity-75 bg-white p-10 min-h-screen flex flex-col items-center">
-    <h1 className="text-5xl sm:text-6xl md:text-7xl text-center text-[#9379C2] font-bold font-serif mb-10 drop-shadow-lg shadow-[#a6a5d1] transition-all duration-300 ease-in-out hover:scale-105 hover:text-[#B09AC7]">
-      Dish Randomizer
-    </h1>
+  className="bg-cover bg-center bg-no-repeat min-h-screen flex flex-col font-sarabun font-bold"
+  style={{
+    backgroundImage: "url('/images/window.jpg')", // ตั้งค่าพื้นหลังจากภาพ
+  }}
+>
+  <Navbar session={session} />
+  <Container>
+    <div className="font-sans bg-opacity-80 bg-gray-100 p-10 min-h-screen flex flex-col items-center">
+      <h1 className="text-5xl sm:text-6xl md:text-7xl text-center text-[#7f5aa2] font-bold font-serif mb-10 drop-shadow-lg shadow-[#8e7ab3] transition-all duration-300 ease-in-out hover:scale-105 hover:text-[#9370b3]">
+        Dish Randomizer
+      </h1>
 
-    <div className="flex flex-col min-733:flex-row justify-between space-y-8 min-733:space-y-0 min-733:space-x-8 w-full max-w-5xl mb-10">
-  <div className="bg-[#d6e6f2] w-full min-733:w-1/2 p-8 rounded-lg shadow-lg flex flex-col items-center">
-        <input
-          className="w-full p-3 mb-4 border rounded-lg"
-          type="text"
-          placeholder="เพิ่มชื่ออาหารที่นี่"
-          maxLength="30"
-          value={newFood.name}
-          onChange={(e) => setNewFood({ ...newFood, name: e.target.value.substring(0, 30) })}
-        />
-        <div className="w-full p-3 mb-4 border rounded-lg bg-white flex items-center justify-center">
+      <div className="flex flex-col min-733:flex-row justify-between space-y-8 min-733:space-y-0 min-733:space-x-8 w-full max-w-5xl mb-10">
+        <div className="bg-[#c1d3ea] w-full min-733:w-1/2 p-8 rounded-lg shadow-lg flex flex-col items-center">
+          {/* เพิ่มความเข้มในกล่องฟอร์ม */}
           <input
-            id="fileInput"
-            className="w-full cursor-pointer"
-            type="file"
+            className="w-full p-3 mb-4 border rounded-lg bg-white"
+            type="text"
+            placeholder="เพิ่มชื่ออาหารที่นี่"
+            maxLength="30"
+            value={newFood.name}
             onChange={(e) =>
-              setNewFood({ ...newFood, img: e.target.files[0] ? URL.createObjectURL(e.target.files[0]) : null })
+              setNewFood({
+                ...newFood,
+                name: e.target.value.substring(0, 30),
+              })
             }
           />
+          <div className="w-full p-3 mb-4 border rounded-lg bg-white flex items-center justify-center">
+            <input
+              id="fileInput"
+              className="w-full cursor-pointer"
+              type="file"
+              onChange={(e) =>
+                setNewFood({
+                  ...newFood,
+                  img: e.target.files[0]
+                    ? URL.createObjectURL(e.target.files[0])
+                    : null,
+                })
+              }
+            />
+          </div>
+          <textarea
+            className="w-full p-3 mb-4 border rounded-lg resize-y min-h-[150px] max-h-[150px] bg-white"
+            placeholder="เพิ่มข้อมูลอาหารที่นี่"
+            value={newFood.info}
+            onChange={(e) => {
+              const inputText = e.target.value;
+              const lines = inputText.split('\n');
+              if (inputText.length <= 1000 && lines.length <= 30) {
+                setNewFood({ ...newFood, info: inputText });
+              } else {
+                const truncatedText = inputText.slice(0, 1000);
+                const truncatedLines = truncatedText
+                  .split('\n')
+                  .slice(0, 30)
+                  .join('\n');
+                alert("สามารถป้อนข้อมูลได้สูงสุด 1000 ตัวอักษร และไม่เกิน 30 บรรทัด");
+                setNewFood({ ...newFood, info: truncatedLines });
+              }
+            }}
+          ></textarea>
+          <button
+            className="w-full bg-[#a8b7db] p-4 rounded-lg text-white shadow-lg hover:bg-[#8498bf]"
+            onClick={handleAddFood}
+          >
+            ADD FOOD
+          </button>
         </div>
-        <textarea
-          className="w-full p-3 mb-4 border rounded-lg resize-y min-h-[150px] max-h-[150px]"
-          placeholder="เพิ่มข้อมูลอาหารที่นี่"
-          value={newFood.info}
-          onChange={(e) => {
-            const inputText = e.target.value;
-            const lines = inputText.split('\n');
-            if (inputText.length <= 1000 && lines.length <= 30) {
-              setNewFood({ ...newFood, info: inputText });
-            } else {
-              const truncatedText = inputText.slice(0, 1000);
-              const truncatedLines = truncatedText.split('\n').slice(0, 30).join('\n');
-              alert("สามารถป้อนข้อมูลได้สูงสุด 1000 ตัวอักษร และไม่เกิน 30 บรรทัด");
-              setNewFood({ ...newFood, info: truncatedLines });
-            }
-          }}
-        ></textarea>
-        <button
-          className="w-full bg-[#c3bef0] p-4 rounded-lg text-white shadow-lg hover:bg-[#a59aca]"
-          onClick={handleAddFood}
-        >
-          ADD FOOD
-        </button>
+
+        <div className="bg-[#cadfb3] min-733:w-1/2 w-full p-8 rounded-lg shadow-lg flex flex-col items-center relative">
+          <div className="w-full p-3 bg-white text-center rounded-lg mb-4">
+            {displayedFood.name}
+          </div>
+          <img
+            className="w-full h-40 object-cover rounded-lg mb-4"
+            src={displayedFood.img || "https://via.placeholder.com/300"}
+            alt="No Image"
+          />
+          <div className="w-full p-3 bg-white text-center rounded-lg mb-4">
+            {truncateText(displayedFood.info, 30)}
+          </div>
+          <div className="flex space-x-4 w-full">
+            <button
+              className={`w-full p-4 rounded-lg text-white shadow-lg ${
+                isRandomizing
+                  ? "bg-gray-400 cursor-not-allowed"
+                  : "bg-[#8498bf] hover:bg-[#6f7fb5]"
+              }`}
+              onClick={handleRandomizeFood}
+              disabled={isRandomizing}
+            >
+              RANDOM
+            </button>
+            <button
+              className={`w-full p-4 rounded-lg text-white shadow-lg ${
+                isConfirmEnabled
+                  ? "bg-[#94cbb1] hover:bg-[#6aa792]"
+                  : "bg-gray-400 cursor-not-allowed"
+              }`}
+              onClick={handleConfirmFood}
+              disabled={!isConfirmEnabled}
+            >
+              CONFIRM
+            </button>
+            <button
+              className="absolute top-4 right-4 bg-[#d6eed0] w-10 h-10 rounded-full flex items-center justify-center shadow-md"
+              onClick={() => openModal(displayedFood)}
+            >
+              <img
+                src="/images/magnifying-glass.png"
+                alt="magnifying glass"
+                className="w-6 h-6"
+              />
+            </button>
+          </div>
+        </div>
       </div>
 
-      <div className="bg-[#e1eec3] min-733:w-1/2 w-full p-8 rounded-lg shadow-lg flex flex-col items-center relative">
-              <div className="w-full p-3 bg-white text-center rounded-lg mb-4">
-                {displayedFood.name}
-              </div>
-              <img
-  className="w-full h-40 object-cover rounded-lg mb-4"
-  src={displayedFood.img || "https://via.placeholder.com/300"}
-  alt="No Image"
-/>
+      <div className="bg-gray-100 w-full max-w-5xl p-8 rounded-lg shadow-lg mb-10">
+        <h3 className="text-xl font-semibold mb-4">Dash List</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 max-834:grid-cols-3 max-640:grid-cols-2 max-431:grid-cols-1 gap-4">
+          {displayFoodList()}
+        </div>
+      </div>
 
-              <div className="w-full p-3 bg-white text-center rounded-lg mb-4">
-                {truncateText(displayedFood.info, 30)}
-              </div>
-              <div className="flex space-x-4 w-full">
-                <button
-                  className={`w-full p-4 rounded-lg text-white shadow-lg ${
-                    isRandomizing ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#c3bef0] hover:bg-[#a59aca]'
-                  }`}
-                  onClick={handleRandomizeFood}
-                  disabled={isRandomizing}
-                >
-                  RANDOM
-                </button>
-                <button
-                  className={`w-full p-4 rounded-lg text-white shadow-lg ${
-                    isConfirmEnabled ? 'bg-[#a8e6cf] hover:bg-[#88d8b0]' : 'bg-gray-400 cursor-not-allowed'
-                  }`}
-                  onClick={handleConfirmFood}
-                  disabled={!isConfirmEnabled}
-                >
-                  CONFIRM
-                </button>
-                <button
-                  className="absolute top-4 right-4 bg-[#e0f7da] w-10 h-10 rounded-full flex items-center justify-center shadow-md"
-                  onClick={() => openModal(displayedFood)}
-                >
-                  <img src="/images/magnifying-glass.png" alt="magnifying glass" className="w-6 h-6"/>
-                </button>
-              </div>
-            </div>
-          </div>
-
-    <div className="bg-white w-full max-w-5xl p-8 rounded-lg shadow-lg mb-10">
-  <h3 className="text-xl font-semibold mb-4">Dash List</h3>
-  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 max-834:grid-cols-3 max-640:grid-cols-2 max-431:grid-cols-1 gap-4">
-    {displayFoodList()}
-  </div>
-</div>
-
-
-
-
-
-<div className="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4 w-full max-w-5xl">
-    {/* ปุ่ม */}
-    <div className="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4 w-full max-w-5xl">
-  <button
-    className="w-full bg-[#a8e6cf] p-4 rounded-lg text-white shadow-lg hover:bg-[#88d8b0]"
-    onClick={resetFoodList}
-  >
-    RESET
-  </button>
-  <button
-    className="w-full bg-[#f5a9ac] p-4 rounded-lg text-white shadow-lg hover:bg-[#f2888b]"
-    onClick={deleteAllFoodItems}
-  >
-    DELETE ALL
-  </button>
-  <button
-    className="w-full bg-[#a0d8ef] p-4 rounded-lg text-white shadow-lg hover:bg-[#8ac9e2]"
-    onClick={toggleSettings}
-  >
-    SETTINGS
-  </button>
-</div>
-</div>
-</div>
-</Container>
-
+      <div className="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4 w-full max-w-5xl">
+        {/* ปุ่ม */}
+        <button
+          className="w-full bg-[#94cbb1] p-4 rounded-lg text-white shadow-lg hover:bg-[#6aa792]"
+          onClick={resetFoodList}
+        >
+          RESET
+        </button>
+        <button
+          className="w-full bg-[#f49496] p-4 rounded-lg text-white shadow-lg hover:bg-[#f06c6f]"
+          onClick={deleteAllFoodItems}
+        >
+          DELETE ALL
+        </button>
+        <button
+          className="w-full bg-[#7dbcdc] p-4 rounded-lg text-white shadow-lg hover:bg-[#5aa5c8]"
+          onClick={toggleSettings}
+        >
+          SETTINGS
+        </button>
+      </div>
+    </div>
+  </Container>
 
       {/* ป๊อปอัปสำหรับแสดงข้อความยืนยัน */}
     {showModal && (
@@ -598,7 +645,7 @@ const handleEditChange = (key, value) => {
     <div className="flex items-center space-x-2 mb-4">
       <input
         type="checkbox"
-        className="w-5 h-5 appearance-none border border-gray-300 rounded-sm checked:bg-green-200 checked:before:content-['✓'] checked:before:text-white checked:before:text-lg flex items-center justify-center"
+        className="w-5 h-5 appearance-none border border-gray-300 rounded-sm checked:bg-green-400 checked:before:content-['✓'] checked:before:text-white checked:before:text-lg flex items-center justify-center"
         checked={isCheckAll}
         onChange={handleCheckAll}
       />
@@ -624,7 +671,7 @@ const handleEditChange = (key, value) => {
             </button>
             <input
               type="checkbox"
-              className="w-5 h-5 appearance-none border border-gray-300 rounded-sm checked:bg-green-200 checked:before:content-['✓'] checked:before:text-white checked:before:text-lg flex items-center justify-center"
+              className="w-5 h-5 appearance-none border border-gray-300 rounded-sm checked:bg-green-400 checked:before:content-['✓'] checked:before:text-white checked:before:text-lg flex items-center justify-center"
               checked={!markedItems.includes(food.name)} // Checked if not in markedItems
               onChange={() => handleMarkItem(food.name)}
             />
